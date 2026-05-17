@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vocal Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#C9A84C;--gold-dim:#8A6E2F;
+  --bg:#0D0D0D;--surface:#161616;--surface2:#1E1E1E;
+  --text:#F0EDE6;--muted:#888;
+  --danger:#E24B4A;
+}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+h1{font-family:'Bebas Neue',sans-serif;letter-spacing:.05em}
+.app{max-width:680px;margin:0 auto;padding:2rem 1rem 4rem}
+.header{display:flex;align-items:baseline;gap:12px;margin-bottom:1.5rem}
+.header h1{font-size:36px;color:var(--text)}
+.header .sub{font-size:13px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.mic-btn{width:100%;padding:1rem;border:none;border-radius:12px;background:var(--gold);color:#0D0D0D;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.08em;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.mic-btn:hover{background:#E0BB60}
+.mic-btn.active{background:var(--danger)}
+.mic-btn.active::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.08);animation:pulse-bg 1s ease-in-out infinite alternate}
+@keyframes pulse-bg{from{opacity:0}to{opacity:1}}
+.status-row{display:flex;align-items:center;gap:10px;margin:.75rem 0 1.25rem}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.dot.live{background:#5BB5A2;box-shadow:0 0 6px #5BB5A280}
+.status-label{font-size:13px;color:var(--muted)}
+.pitch-display{background:var(--surface);border-radius:16px;padding:1.5rem;margin-bottom:1rem;display:flex;flex-direction:column;align-items:center;gap:.5rem;border:0.5px solid rgba(255,255,255,.06)}
+.note-big{font-family:'Bebas Neue',sans-serif;font-size:80px;line-height:1;color:var(--gold);transition:all .15s}
+.note-big.silent{color:#333}
+.hz-label{font-size:14px;color:var(--muted);letter-spacing:.05em}
+.hz-val{font-size:14px;font-weight:500;color:var(--text)}
+.register-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:.25rem;transition:all .3s}
+.register-badge.none{background:rgba(255,255,255,.04);color:var(--muted)}
+.bars-section{background:var(--surface);border-radius:16px;padding:1.25rem;margin-bottom:1rem;border:0.5px solid rgba(255,255,255,.06)}
+.bars-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem}
+.piano-range{display:flex;flex-direction:column;gap:6px}
+.range-row{display:flex;align-items:center;gap:8px}
+.range-name{font-size:11px;color:var(--muted);width:64px;text-align:right;flex-shrink:0}
+.range-bar-track{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.06);position:relative;overflow:hidden}
+.range-bar-fill{height:100%;border-radius:3px;transition:width .2s,background .3s}
+.range-note-label{font-size:10px;color:var(--muted);width:56px;flex-shrink:0}
+.range-active .range-name{color:var(--text)}
+.waveform-wrap{background:var(--surface);border-radius:16px;padding:1.25rem;margin-bottom:1rem;border:0.5px solid rgba(255,255,255,.06)}
+.waveform-wrap canvas{width:100%;height:60px;display:block;border-radius:6px}
+.feedback-section{background:var(--surface);border-radius:16px;padding:1.25rem;margin-bottom:1rem;border:0.5px solid rgba(255,255,255,.06)}
+.feedback-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.feedback-header span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.get-feedback-btn{padding:5px 14px;border-radius:8px;border:0.5px solid var(--gold-dim);background:transparent;color:var(--gold);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s}
+.get-feedback-btn:hover{background:rgba(201,168,76,.1)}
+.get-feedback-btn:disabled{opacity:.4;cursor:not-allowed}
+.feedback-text{font-size:14px;line-height:1.7;color:var(--text);min-height:48px}
+.feedback-text.loading{color:var(--muted);font-style:italic}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}
+.stat-card{background:var(--surface);border-radius:12px;padding:.85rem;border:0.5px solid rgba(255,255,255,.06);text-align:center}
+.stat-card .sv{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold)}
+.stat-card .sk{font-size:11px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1>Vocal Coach</h1>
+    <span class="sub">real-time pitch analyzer</span>
+  </div>
+
+  <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤 Start Listening</button>
+
+  <div class="status-row">
+    <div class="dot" id="dot"></div>
+    <span class="status-label" id="statusLabel">Click to begin — microphone access required</span>
+  </div>
+
+  <div class="pitch-display">
+    <div class="note-big silent" id="noteBig">—</div>
+    <div style="display:flex;gap:1rem;align-items:center">
+      <span class="hz-label">Frequency</span>
+      <span class="hz-val" id="hzVal">— Hz</span>
+      <span class="hz-label">Cents</span>
+      <span class="hz-val" id="centsVal">—</span>
+    </div>
+    <div class="register-badge none" id="registerBadge">No voice detected</div>
+  </div>
+
+  <div class="waveform-wrap">
+    <div class="bars-label">Live waveform</div>
+    <canvas id="waveCanvas" height="60"></canvas>
+  </div>
+
+  <div class="bars-section">
+    <div class="bars-label">Voice registers — where do you sit?</div>
+    <div class="piano-range" id="rangeRows"></div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="sv" id="statLow">—</div><div class="sk">Lowest note</div></div>
+    <div class="stat-card"><div class="sv" id="statHigh">—</div><div class="sk">Highest note</div></div>
+    <div class="stat-card"><div class="sv" id="statRange">—</div><div class="sk">Range (semitones)</div></div>
+  </div>
+
+  <div class="feedback-section">
+    <div class="feedback-header">
+      <span>AI Coach Feedback</span>
+      <button class="get-feedback-btn" id="feedbackBtn" onclick="getFeedback()" disabled>Get feedback ↗</button>
+    </div>
+    <div class="feedback-text" id="feedbackText">Sing a few notes, then ask for AI feedback on your voice.</div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────
+// Set your Groq API key here, or via an env variable injected at build time.
+const GROQ_API_KEY = typeof env !== 'undefined' && env.GROQ_API_KEY
+  ? env.GROQ_API_KEY
+  : '';  // ← paste key here if running locally without env injection
+
+// ── Registers ─────────────────────────────────────────────
+const REGISTERS = [
+  {name:'Bass',     low:82,  high:294,  color:'#4A90D9', range:'E2–D4'},
+  {name:'Baritone', low:98,  high:370,  color:'#5BB5A2', range:'G2–F#4'},
+  {name:'Tenor',    low:131, high:494,  color:'#8BC34A', range:'C3–B4'},
+  {name:'Alto',     low:175, high:698,  color:'#E8A838', range:'F3–F5'},
+  {name:'Mezzo',    low:196, high:880,  color:'#E06B8B', range:'G3–A5'},
+  {name:'Soprano',  low:262, high:1047, color:'#C56CF0', range:'C4–C6'},
+];
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+function freqToNote(f) {
+  if (f <= 0) return null;
+  const semis = Math.round(12 * Math.log2(f / 440)) + 69;
+  const cents = Math.round(1200 * Math.log2(f / (440 * Math.pow(2, (semis - 69) / 12))));
+  const octave = Math.floor(semis / 12) - 1;
+  return { note: NOTE_NAMES[semis % 12], octave, midi: semis, cents, freq: f };
+}
+
+// ── State ──────────────────────────────────────────────────
+let audioCtx, analyser, source, stream, animId;
+let listening = false;
+let sessionNotes = [];
+let lowestHz = Infinity, highestHz = 0;
+
+// ── Build register rows ────────────────────────────────────
+const rangeContainer = document.getElementById('rangeRows');
+REGISTERS.forEach(r => {
+  const row = document.createElement('div');
+  row.className = 'range-row';
+  row.id = 'row-' + r.name;
+  row.innerHTML = `<span class="range-name">${r.name}</span>
+    <div class="range-bar-track"><div class="range-bar-fill" id="bar-${r.name}" style="width:0%;background:${r.color}20"></div></div>
+    <span class="range-note-label" style="color:${r.color}">${r.range}</span>`;
+  rangeContainer.appendChild(row);
+});
+
+// ── Waveform canvas ────────────────────────────────────────
+const waveCanvas = document.getElementById('waveCanvas');
+const wctx = waveCanvas.getContext('2d');
+waveCanvas.width = 600; waveCanvas.height = 60;
+
+function drawWave(dataArray) {
+  wctx.clearRect(0, 0, 600, 60);
+  wctx.strokeStyle = '#C9A84C'; wctx.lineWidth = 1.5;
+  wctx.beginPath();
+  const slice = 600 / dataArray.length;
+  dataArray.forEach((v, i) => {
+    const y = (v / 255) * 60;
+    i === 0 ? wctx.moveTo(0, y) : wctx.lineTo(i * slice, y);
+  });
+  wctx.stroke();
+}
+function drawFlatLine() {
+  wctx.clearRect(0, 0, 600, 60);
+  wctx.strokeStyle = '#333'; wctx.lineWidth = 1;
+  wctx.beginPath(); wctx.moveTo(0, 30); wctx.lineTo(600, 30); wctx.stroke();
+}
+drawFlatLine();
+
+// ── Pitch detection (autocorrelation) ─────────────────────
+function detectPitch(buf, srate) {
+  let rms = 0;
+  for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / buf.length);
+  if (rms < 0.01) return -1;
+  let best = -1, bestCorr = -1;
+  const minLag = Math.floor(srate / 1100);
+  const maxLag = Math.ceil(srate / 60);
+  for (let lag = minLag; lag < maxLag; lag++) {
+    let corr = 0;
+    for (let i = 0; i < buf.length - lag; i++) corr += buf[i] * buf[i + lag];
+    if (corr > bestCorr) { bestCorr = corr; best = lag; }
+  }
+  return best < 0 ? -1 : srate / best;
+}
+
+// ── Animation loop ─────────────────────────────────────────
+let floatBuf;
+function loop() {
+  if (!listening) return;
+  animId = requestAnimationFrame(loop);
+  const td = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(td);
+  drawWave(td);
+  if (!floatBuf) floatBuf = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(floatBuf);
+  const freq = detectPitch(floatBuf, audioCtx.sampleRate);
+  if (freq > 60 && freq < 1200) {
+    updatePitchUI(freq);
+    sessionNotes.push(freq);
+    if (freq < lowestHz) lowestHz = freq;
+    if (freq > highestHz) highestHz = freq;
+    updateStats();
+  } else {
+    dimPitch();
+  }
+}
+
+// ── UI updates ─────────────────────────────────────────────
+function updatePitchUI(f) {
+  const n = freqToNote(f); if (!n) return;
+  const noteBig = document.getElementById('noteBig');
+  noteBig.textContent = n.note + n.octave;
+  noteBig.classList.remove('silent');
+  document.getElementById('hzVal').textContent = f.toFixed(1) + ' Hz';
+  const cs = n.cents;
+  document.getElementById('centsVal').textContent = (cs >= 0 ? '+' : '') + cs + '¢';
+  const reg = getRegister(f);
+  const badge = document.getElementById('registerBadge');
+  if (reg) {
+    badge.textContent = reg.name;
+    badge.style.background = reg.color + '22';
+    badge.style.color = reg.color;
+    badge.style.border = '0.5px solid ' + reg.color + '55';
+    badge.className = 'register-badge';
+    highlightRegisterBars(f);
+  }
+}
+
+function dimPitch() {
+  document.getElementById('noteBig').classList.add('silent');
+  REGISTERS.forEach(r => {
+    const b = document.getElementById('bar-' + r.name);
+    if (b) { b.style.width = '0%'; b.style.background = r.color + '20'; }
+    document.getElementById('row-' + r.name).classList.remove('range-active');
+  });
+}
+
+function highlightRegisterBars(f) {
+  REGISTERS.forEach(r => {
+    const b = document.getElementById('bar-' + r.name);
+    const row = document.getElementById('row-' + r.name);
+    if (!b || !row) return;
+    if (f >= r.low && f <= r.high) {
+      const pct = Math.min(100, ((f - r.low) / (r.high - r.low)) * 100);
+      b.style.width = Math.max(4, pct) + '%';
+      b.style.background = r.color;
+      row.classList.add('range-active');
+    } else {
+      b.style.width = '0%';
+      b.style.background = r.color + '20';
+      row.classList.remove('range-active');
+    }
+  });
+}
+
+function getRegister(f) {
+  return REGISTERS.find(r => f >= r.low && f <= r.high) || null;
+}
+
+function updateStats() {
+  if (lowestHz < Infinity) {
+    const lo = freqToNote(lowestHz);
+    const hi = freqToNote(highestHz);
+    if (lo && hi) {
+      document.getElementById('statLow').textContent = lo.note + lo.octave;
+      document.getElementById('statHigh').textContent = hi.note + hi.octave;
+      document.getElementById('statRange').textContent = Math.abs(hi.midi - lo.midi);
+    }
+  }
+}
+
+// ── Mic toggle ─────────────────────────────────────────────
+async function toggleMic() {
+  if (listening) { stopListening(); return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    listening = true;
+    document.getElementById('micBtn').textContent = '⏹ Stop Listening';
+    document.getElementById('micBtn').classList.add('active');
+    document.getElementById('dot').classList.add('live');
+    document.getElementById('statusLabel').textContent = 'Listening — sing or hum freely';
+    document.getElementById('feedbackBtn').disabled = false;
+    document.getElementById('registerBadge').className = 'register-badge none';
+    document.getElementById('registerBadge').textContent = 'Waiting for signal…';
+    loop();
+  } catch (e) {
+    document.getElementById('statusLabel').textContent = 'Microphone access denied — please allow in browser settings';
+  }
+}
+
+function stopListening() {
+  listening = false;
+  cancelAnimationFrame(animId);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (audioCtx) audioCtx.close();
+  document.getElementById('micBtn').textContent = '🎤 Start Listening';
+  document.getElementById('micBtn').classList.remove('active');
+  document.getElementById('dot').classList.remove('live');
+  document.getElementById('statusLabel').textContent = 'Stopped — click to record again';
+  drawFlatLine();
+}
+
+// ── Groq AI feedback ───────────────────────────────────────
+async function getFeedback() {
+  const btn = document.getElementById('feedbackBtn');
+  const out = document.getElementById('feedbackText');
+  if (sessionNotes.length < 20) {
+    out.textContent = 'Sing for a bit longer, then request feedback!';
+    return;
+  }
+  if (!GROQ_API_KEY) {
+    out.textContent = 'No Groq API key found. Set env.GROQ_API_KEY or paste your key into the GROQ_API_KEY constant in the script.';
+    return;
+  }
+  btn.disabled = true;
+  out.className = 'feedback-text loading';
+  out.textContent = 'Analyzing your voice…';
+
+  const lo = freqToNote(lowestHz);
+  const hi = freqToNote(highestHz);
+  const semiRange = lo && hi ? Math.abs(hi.midi - lo.midi) : 0;
+  const regs = REGISTERS.filter(r => {
+    const inRange = sessionNotes.filter(f => f >= r.low && f <= r.high).length;
+    return inRange / sessionNotes.length > 0.05;
+  }).map(r => r.name);
+  const recent = sessionNotes.slice(-60);
+  const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const avgNote = freqToNote(avg);
+
+  const prompt = `You are a friendly, encouraging vocal coach. A singer just sang and their real-time data shows:
+- Lowest note detected: ${lo ? lo.note + lo.octave : 'unknown'}
+- Highest note detected: ${hi ? hi.note + hi.octave : 'unknown'}
+- Range: ${semiRange} semitones
+- Voice registers they sang in: ${regs.join(', ') || 'unclear'}
+- Most recent average note: ${avgNote ? avgNote.note + avgNote.octave : 'unknown'}
+
+Give them 3–4 sentences of warm, specific, honest feedback:
+1. Identify their likely voice type (bass/baritone/tenor/alto/mezzo/soprano) based on range
+2. Comment on their range (${semiRange} semitones) — is it narrow/average/wide?
+3. One encouraging tip to expand their range
+4. One small technique note (breath, resonance, consistency) they could work on
+Keep it conversational, specific, and motivating. No bullet points — just natural sentences.`;
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + GROQ_API_KEY
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content || 'Could not get feedback.';
+    out.className = 'feedback-text';
+    out.textContent = text;
+  } catch (e) {
+    out.className = 'feedback-text';
+    out.textContent = 'Could not reach Groq — check your GROQ_API_KEY and try again.';
+  }
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
